@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CAPRES · Inspecciones Técnicas</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<div class="topbar">
+  <div class="logo">
+    <div class="logo-icon">C</div>
+    <div><div class="logo-name">CAPRES</div><div class="logo-sub">Inspecciones Técnicas · Última visita por CE</div></div>
+  </div>
+  <div class="breadcrumb" id="bc"><span class="bc-active">Vista General</span></div>
+  <div class="api-st" id="api-st">
+    <div class="api-dot" id="api-dot"></div>
+    <span id="api-txt">Conectando...</span>
+  </div>
+</div>
+
+<!-- L1 -->
+<div class="view active" id="v1">
+  <div class="l1">
+    <!-- Header + KPI bar horizontal -->
+    <div class="l1-toprow">
+      <div class="l1-heading">
+        <div class="page-title">Vista General</div>
+        <div class="page-sub" id="l1-sub">Cargando datos...</div>
+      </div>
+      <div class="kpi-row" id="kpi-row"></div>
+    </div>
+    <!-- Fase cards -->
+    <div class="fases" id="fases-grid"></div>
+  </div>
+</div>
+
+<!-- L2 -->
+<div class="view" id="v2">
+  <div class="l2">
+    <div class="l2-top">
+      <div class="l2-left">
+        <button class="back" onclick="goL1()">← Volver</button>
+        <h2 id="l2-h" style="font-size:18px;font-weight:700"></h2>
+        <span class="fase-badge" id="l2-badge"></span>
+      </div>
+      <div class="controls">
+        <input class="search" id="srch" type="text" placeholder="🔍 Buscar escuela..." oninput="renderTbl()">
+        <select class="fsel" id="f-dep" onchange="renderTbl()"><option value="">Todos los departamentos</option></select>
+        <select class="fsel" id="f-enl" onchange="renderTbl()"><option value="">Estado de internet</option></select>
+        <select class="fsel" id="f-cat" onchange="renderTbl()"><option value="">Estado instalación</option></select>
+      </div>
+    </div>
+    <div id="fase-banner" style="display:none;margin-bottom:14px;padding:16px 20px;border-radius:12px;border-left:4px solid;background:var(--surface);border-top:1px solid var(--border);border-right:1px solid var(--border);border-bottom:1px solid var(--border)"></div>
+    <div class="minis" id="minis"></div>
+    <div class="tbl-card">
+      <div class="tbl-bar"><span id="tbl-info">—</span><span style="font-size:11px;color:var(--muted)">Click fila → ver detalle</span></div>
+      <div class="tbl-scroll">
+        <table><thead><tr>
+          <th>Código</th><th>Nombre de la Escuela</th><th>Departamento</th><th>Estado de Internet</th><th>Red Verificada</th>
+          <th>Antenas Wi-Fi</th><th>Velocidad</th><th>Estado Instalación</th><th>Grupo</th><th>N° Visita</th><th></th>
+        </tr></thead>
+        <tbody id="tbody"></tbody></table>
+      </div>
+      <div class="pg" id="pg"></div>
+    </div>
+  </div>
+</div>
+
+<!-- L3 -->
+<div class="view" id="v3">
+  <div class="l3">
+    <div class="l3-top">
+      <button class="back" onclick="goL2()">← Volver a lista</button>
+      <div style="flex:1;margin-left:14px">
+        <div class="l3-name" id="l3-name"></div>
+        <div class="l3-meta" id="l3-meta"></div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <span class="visita-badge" id="l3-visita"></span>
+        <span class="fase-badge" id="l3-badge"></span>
+      </div>
+    </div>
+    <div class="l3-grid" id="l3-grid"></div>
+  </div>
+</div>
+
+
+<!-- LIGHTBOX -->
+<div id="lightbox" onclick="if(event.target===this)closeLightbox()">
+  <div class="lb-box">
+    <div class="lb-header">
+      <span id="lb-title" class="lb-title"></span>
+      <button class="lb-close" onclick="closeLightbox()">✕</button>
+    </div>
+    <div id="lb-body" class="lb-body"></div>
+  </div>
+</div>
+<!-- BARRA INFO FIJA ABAJO -->
+<div id="info-bar" style="
+  position:fixed;bottom:0;left:0;right:0;z-index:200;
+  background:var(--surface);
+  border-top:3px solid var(--info-color, #3b82f6);
+  padding:14px 28px;
+  display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap;
+  box-shadow:0 -4px 24px rgba(0,0,0,0.10);
+  transform:translateY(100%);
+  transition:transform 0.35s cubic-bezier(.4,0,.2,1);
+  pointer-events:none;
+">
+  <div style="display:flex;align-items:center;gap:14px;flex:1;min-width:0">
+    <div id="info-bar-icon" style="font-size:26px;flex-shrink:0"></div>
+    <div style="min-width:0">
+      <div id="info-bar-title" style="font-size:14px;font-weight:700;color:var(--info-color,#3b82f6);margin-bottom:3px"></div>
+      <div id="info-bar-desc" style="font-size:12px;color:var(--muted);line-height:1.5"></div>
+    </div>
+  </div>
+  <div id="info-bar-tags" style="display:flex;flex-wrap:wrap;gap:6px;flex-shrink:0"></div>
+  <button onclick="hideInfoBar()" style="
+    background:none;border:none;color:var(--muted);font-size:18px;
+    cursor:pointer;padding:4px 8px;flex-shrink:0;line-height:1;
+    pointer-events:all;
+  ">✕</button>
+</div>
+
+  <script src="script.js"></script>
+</body>
+</html>
