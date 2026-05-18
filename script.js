@@ -66,7 +66,7 @@ async function cargarAP() {
 function getAP(r) {
   const cod = (g(r, 'CÓD CE') || '').toString().trim() || (g(r, 'NOMBRE CE').match(/^(\d+)/) || [])[1] || '';
   if (cod && AP_MAP[cod] !== undefined) return AP_MAP[cod];
-  return parseFloat(r['Cantidad de AP instalados']) || 0;
+  return null;
 }
 
 async function init() {
@@ -147,7 +147,38 @@ function hideInfoBar(delay) {
   }, delay || 0);
 }
 
-document.addEventListener('keydown', e => { if (e.key === 'Escape') hideInfoBar(0); });
+document.addEventListener("keydown", e => { if (e.key === "Escape") { hideInfoBar(0); closeFasePopover(); } });
+
+function closeFasePopover() {
+  const existing = document.getElementById("fase-popover");
+  if (existing) existing.remove();
+}
+
+function toggleFasePopover(fase, btn) {
+  const existing = document.getElementById("fase-popover");
+  if (existing) { existing.remove(); return; }
+  const d = FASE_INFO[fase]; if (!d) return;
+  const pop = document.createElement("div");
+  pop.id = "fase-popover";
+  pop.style.cssText = `position:fixed;z-index:999;background:var(--surface);border:1.5px solid ${d.color};border-radius:14px;padding:16px;box-shadow:0 8px 32px rgba(0,0,0,0.18);max-width:300px;min-width:240px;visibility:hidden`;
+  pop.innerHTML = `<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><span style="font-size:18px">${d.icon}</span><span style="font-size:13px;font-weight:700;color:${d.color}">${fase} · ${d.titulo}</span></div><p style="font-size:12px;color:var(--muted);line-height:1.6;margin-bottom:10px">${d.desc}</p><div style="display:flex;flex-wrap:wrap;gap:5px">${d.tags.map(t => `<span style="font-size:11px;font-weight:600;padding:3px 9px;border-radius:20px;background:${d.color}18;color:${d.color};border:1px solid ${d.color}30">● ${t}</span>`).join("")}</div>`;
+  document.body.appendChild(pop);
+  requestAnimationFrame(() => {
+    const rect = btn.getBoundingClientRect();
+    const popW = pop.offsetWidth;
+    const popH = pop.offsetHeight;
+    let left = rect.left + rect.width / 2 - popW / 2;
+    let top = rect.bottom + 8;
+    if (top + popH > window.innerHeight - 8) top = rect.top - popH - 8;
+    if (left < 8) left = 8;
+    if (left + popW > window.innerWidth - 8) left = window.innerWidth - popW - 8;
+    pop.style.left = left + "px";
+    pop.style.top = top + "px";
+    pop.style.visibility = "visible";
+    pop.style.animation = "lbSlide .2s ease";
+  });
+  setTimeout(() => document.addEventListener("click", closeFasePopover, { once: true }), 50);
+}
 
 function renderL1() {
   const n = DATA.length;          // Total con Fase CAPRES válida
@@ -218,7 +249,7 @@ function renderL1() {
     const apF = items.reduce((s, r) => s + (parseFloat(getAP(r)) || 0), 0);
     const fNum = fase.replace('Fase ', '');
     
-    return `<div class="fc" style="--fcolor:${cfg.color}" onclick="goL2('${fase}')" onmouseenter="showInfoBar('${fase}')" onmouseleave="hideInfoBar(300)"><div class="fc-top"><div class="fc-school-icon">${schoolIcon(cfg.color)}</div><div class="fc-info"><div class="fc-label">FASE ${fNum}</div><div class="fc-num">${items.length.toLocaleString()}</div><div class="fc-desc">Centros Escolares</div></div></div><div class="fc-bar"><div class="fc-fill" style="width:${p}%"></div></div><div class="fc-bottom"><div class="fc-stat2"><div class="fc-stat2-v" style="color:${cfg.color}">${opF.toLocaleString()}</div><div class="fc-stat2-l">Operativos</div></div><div class="fc-stat2"><div class="fc-stat2-v" style="color:${cfg.color}">${(abF/1000).toFixed(1)} Gbps</div><div class="fc-stat2-l">Ancho de Banda</div></div><div class="fc-stat2"><div class="fc-stat2-v" style="color:${cfg.color}">${Math.round(apF).toLocaleString()}</div><div class="fc-stat2-l">AP Instalados</div></div></div><div class="fc-pct">${p}% del total</div><div class="fc-arrow">›</div></div>`;
+    return `<div class="fc" style="--fcolor:${cfg.color};position:relative" onclick="goL2('${fase}')"><button onclick="event.stopPropagation();toggleFasePopover('${fase}',this)" title="Ver información" style="position:absolute;top:12px;right:38px;width:22px;height:22px;border-radius:50%;border:1.5px solid ${cfg.color};background:transparent;color:${cfg.color};font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:10;line-height:1;padding:0">?</button><div class="fc-top"><div class="fc-school-icon">${schoolIcon(cfg.color)}</div><div class="fc-info"><div class="fc-label">FASE ${fNum}</div><div class="fc-num">${items.length.toLocaleString()}</div><div class="fc-desc">Centros Escolares</div></div></div><div class="fc-bar"><div class="fc-fill" style="width:${p}%"></div></div><div class="fc-bottom"><div class="fc-stat2"><div class="fc-stat2-v" style="color:${cfg.color}">${opF.toLocaleString()}</div><div class="fc-stat2-l">Operativos</div></div><div class="fc-stat2"><div class="fc-stat2-v" style="color:${cfg.color}">${(abF/1000).toFixed(1)} Gbps</div><div class="fc-stat2-l">Ancho de Banda</div></div><div class="fc-stat2"><div class="fc-stat2-v" style="color:${cfg.color}">${Math.round(apF).toLocaleString()}</div><div class="fc-stat2-l">AP Instalados</div></div></div><div class="fc-pct">${p}% del total</div><div class="fc-arrow">›</div></div>`;
   }).join('');
 }
 
@@ -332,7 +363,7 @@ function renderTbl() {
     const ctrlVal = g(r, 'Estado de enlace');
     const cp = ctrlVal === 'ON' ? pill('ON', 'var(--green)') : ctrlVal === 'OFF' ? pill('OFF', 'var(--red)') : pill('—', 'var(--muted)');
     const catv = g(r, 'Categoria Instalacion WIFI');
-    const catLabel = (catv.includes('Integral') || catv.includes('Falta instalar 1')) ? 'Completa' : (catv.includes('defic') || catv.includes('Varias')) ? 'Deficiente' : catv ? catv.substring(0, 14) + '…' : '—';
+    const catLabel = (catv.includes('Integral') || catv.includes('Falta instalar 1')) ? 'Completa' : (catv.includes('defic') || catv.includes('Varias')) ? 'Deficiente' : catv ? catv : '—';
     const catColor = (catv.includes('Integral') || catv.includes('Falta instalar 1')) ? 'var(--green)' : (catv.includes('defic') || catv.includes('Varias')) ? 'var(--red)' : 'var(--muted)';
     const catp = pill(catLabel, catColor);
     const ab2 = parseFloat(g(r, 'Ancho de Banda')) || 0;
@@ -431,7 +462,7 @@ function goL3(idx) {
       <div class="irow"><span class="ik">Batería de Respaldo (UPS)</span><span class="iv">${chk(g(r,'UPS de Gabinete principal cuenta con puerto de Monitoreo')||g(r,'UPS Monitoreo'))}</span></div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:14px;padding-top:12px;border-top:1px solid var(--border)">
         <div class="bstat" style="background:rgba(124,58,237,.08);border-radius:8px;padding:8px 4px">
-          <div class="bstat-v" style="color:var(--purple);font-size:26px">${getAP(r)||0}</div>
+          <div class="bstat-v" style="color:var(--purple);font-size:26px">${getAP(r) !== null ? getAP(r) : '—'}</div>
           <div class="bstat-l" style="display:flex;align-items:center;justify-content:center;gap:4px">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--purple)" stroke-width="2"><path d="M5 12a7 7 0 1 1 14 0 7 7 0 0 1-14 0Z"/><circle cx="12" cy="12" r="3"/><path d="M12 5v1M12 18v1M5 12H4M20 12h-1"/></svg>
             AP Instalados
@@ -516,9 +547,82 @@ function openLightbox(type, url, title) {
     const driveBtn = `<div style="text-align:center;margin-top:12px"><a href="${driveLink}" target="_blank" style="display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--blue);text-decoration:none;padding:7px 16px;border-radius:8px;border:1px solid var(--border);background:var(--surface);">↗ Abrir en Drive</a></div>`;
     if (type === 'pdf') { lbBody.innerHTML = `<div style="position:relative"><iframe id="lb-iframe" src="${embedUrl}" style="width:100%;height:74vh;border:none;border-radius:8px;background:#ffffff" allow="autoplay" allowfullscreen></iframe>${driveBtn}</div>`; } 
     else {
-        lbBody.innerHTML = `<div id="lb-img-wrap" style="text-align:center"><div id="lb-spinner" style="display:flex;align-items:center;justify-content:center;height:200px;color:var(--muted);font-size:13px;gap:10px"><div style="width:20px;height:20px;border:2px solid var(--border);border-top-color:var(--blue);border-radius:50%;animation:spin 1s linear infinite"></div>Cargando...</div><img id="lb-img" src="${thumbUrl}" alt="${title}" style="max-width:100%;max-height:74vh;border-radius:8px;object-fit:contain;display:none;margin:0 auto;cursor:zoom-in" onclick="window.open('${driveLink}','_blank')"/>${driveBtn}</div><div id="lb-iframe-wrap" style="display:none"><iframe src="${embedUrl}" style="width:100%;height:74vh;border:none;border-radius:8px;background:#ffffff" allow="autoplay" allowfullscreen></iframe>${driveBtn}</div>`;
-        const imgEl = document.getElementById('lb-img'); const spinner = document.getElementById('lb-spinner');
-        if (imgEl) { imgEl.onload = () => { spinner.style.display = 'none'; imgEl.style.display = 'block'; }; imgEl.onerror = () => { document.getElementById('lb-img-wrap').style.display = 'none'; document.getElementById('lb-iframe-wrap').style.display = 'block'; }; }
+        lbBody.innerHTML = `
+          <div id="lb-img-wrap" style="text-align:center;overflow:hidden;position:relative;border-radius:8px;background:#000;max-height:74vh;display:flex;align-items:center;justify-content:center;">
+            <div id="lb-spinner" style="display:flex;align-items:center;justify-content:center;height:200px;color:var(--muted);font-size:13px;gap:10px;position:absolute">
+              <div style="width:20px;height:20px;border:2px solid var(--border);border-top-color:var(--blue);border-radius:50%;animation:spin 1s linear infinite"></div>Cargando...
+            </div>
+            <div id="lb-zoom-wrap" style="overflow:hidden;width:100%;max-height:74vh;position:relative;cursor:grab">
+              <img id="lb-img" src="${thumbUrl}" alt="${title}" style="max-width:100%;max-height:74vh;object-fit:contain;display:none;margin:0 auto;transform-origin:center center;transition:transform 0.1s;user-select:none;"/>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-top:10px">
+            <button onclick="lbZoom(-0.25)" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:6px 14px;cursor:pointer;font-size:16px;color:var(--text)">−</button>
+            <span id="lb-zoom-pct" style="font-size:12px;color:var(--muted);min-width:40px;text-align:center">100%</span>
+            <button onclick="lbZoom(0.25)" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:6px 14px;cursor:pointer;font-size:16px;color:var(--text)">+</button>
+            <button onclick="lbZoomReset()" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:6px 12px;cursor:pointer;font-size:11px;color:var(--muted)">Reset</button>
+          </div>
+          ${driveBtn}
+          <div id="lb-iframe-wrap" style="display:none"><iframe src="${embedUrl}" style="width:100%;height:74vh;border:none;border-radius:8px;background:#ffffff" allow="autoplay" allowfullscreen></iframe>${driveBtn}</div>`;
+
+        const imgEl = document.getElementById('lb-img');
+        const spinner = document.getElementById('lb-spinner');
+        const wrap = document.getElementById('lb-zoom-wrap');
+
+        // Estado zoom
+        let scale = 1, posX = 0, posY = 0, isDragging = false, startX = 0, startY = 0, lastPinchDist = null;
+
+        function applyTransform() {
+          imgEl.style.transform = `translate(${posX}px, ${posY}px) scale(${scale})`;
+          document.getElementById('lb-zoom-pct').textContent = Math.round(scale * 100) + '%';
+          wrap.style.cursor = scale > 1 ? 'grab' : 'default';
+        }
+
+        window.lbZoom = (delta) => {
+          scale = Math.min(5, Math.max(0.5, scale + delta));
+          if (scale <= 1) { posX = 0; posY = 0; }
+          applyTransform();
+        };
+
+        window.lbZoomReset = () => { scale = 1; posX = 0; posY = 0; applyTransform(); };
+
+        // Scroll para zoom
+        wrap.addEventListener('wheel', (e) => {
+          e.preventDefault();
+          const delta = e.deltaY < 0 ? 0.15 : -0.15;
+          scale = Math.min(5, Math.max(0.5, scale + delta));
+          if (scale <= 1) { posX = 0; posY = 0; }
+          applyTransform();
+        }, { passive: false });
+
+        // Drag para mover
+        wrap.addEventListener('mousedown', (e) => { if (scale <= 1) return; isDragging = true; startX = e.clientX - posX; startY = e.clientY - posY; wrap.style.cursor = 'grabbing'; });
+        window.addEventListener('mousemove', (e) => { if (!isDragging) return; posX = e.clientX - startX; posY = e.clientY - startY; applyTransform(); });
+        window.addEventListener('mouseup', () => { isDragging = false; wrap.style.cursor = scale > 1 ? 'grab' : 'default'; });
+
+        // Pinch zoom móvil
+        wrap.addEventListener('touchstart', (e) => {
+          if (e.touches.length === 2) { lastPinchDist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY); }
+          else if (e.touches.length === 1 && scale > 1) { isDragging = true; startX = e.touches[0].clientX - posX; startY = e.touches[0].clientY - posY; }
+        }, { passive: true });
+        wrap.addEventListener('touchmove', (e) => {
+          if (e.touches.length === 2 && lastPinchDist) {
+            e.preventDefault();
+            const dist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+            scale = Math.min(5, Math.max(0.5, scale * (dist / lastPinchDist)));
+            lastPinchDist = dist;
+            if (scale <= 1) { posX = 0; posY = 0; }
+            applyTransform();
+          } else if (e.touches.length === 1 && isDragging) {
+            posX = e.touches[0].clientX - startX; posY = e.touches[0].clientY - startY; applyTransform();
+          }
+        }, { passive: false });
+        wrap.addEventListener('touchend', () => { isDragging = false; lastPinchDist = null; });
+
+        if (imgEl) {
+          imgEl.onload = () => { spinner.style.display = 'none'; imgEl.style.display = 'block'; };
+          imgEl.onerror = () => { document.getElementById('lb-img-wrap').style.display = 'none'; document.getElementById('lb-iframe-wrap').style.display = 'block'; };
+        }
     }
     lb.classList.add('active'); document.body.style.overflow = 'hidden';
 }
