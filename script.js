@@ -9,7 +9,7 @@ const FASE_CFG = {
 };
 
 const PG = 25;
-let RAW = [], DATA = [], AP_MAP = {}, curFase = '', filtered = [], page = 1;
+let RAW = [], DATA = [], AP_MAP = {}, curFase = '', curBloques = new Set(), filtered = [], page = 1;
 let _dlCounter = 0;
 
 function procesarData(raw) {
@@ -308,8 +308,43 @@ function goL2(fase) {
   const catOpts = [...new Set(fd.map(r => catNorm(g(r, 'Categoria Instalacion WIFI'))).filter(Boolean))].sort();
   fillSel('f-cat', catOpts, 'Categoría');
   document.getElementById('srch').value = '';
+  curBloques = new Set();
+  const bloques = [...new Set(fd.map(r => g(r, 'Bloque')).filter(Boolean))].sort();
+  const bloquePills = document.getElementById('bloque-pills');
+  if (bloquePills) {
+    bloquePills.innerHTML = ['Todo', ...bloques].map(b =>
+      `<button onclick="setBloque('${b}')" id="bp-${b}" style="padding:5px 14px;border-radius:20px;border:1.5px solid ${b==='Todo'?cfg.color:'var(--border2)'};background:${b==='Todo'?cfg.color:'transparent'};color:${b==='Todo'?'#fff':'var(--text)'};font-size:12px;font-weight:600;cursor:pointer;transition:all .2s">${b}</button>`
+    ).join('');
+  }
   setBc([{ txt: 'Vista General', fn: 'goL1()' }, { txt: curFase, active: true }]);
   show('v2');
+  renderTbl();
+}
+
+function setBloque(b) {
+  page = 1;
+  const cfg = FASE_CFG[curFase] || { color: 'var(--blue)' };
+  if (b === 'Todo') {
+    curBloques.clear();
+  } else {
+    if (curBloques.has(b)) { curBloques.delete(b); } else { curBloques.add(b); }
+  }
+  // Update pill styles
+  const todoPill = document.getElementById('bp-Todo');
+  if (todoPill) {
+    const todoActive = curBloques.size === 0;
+    todoPill.style.background = todoActive ? cfg.color : 'transparent';
+    todoPill.style.color = todoActive ? '#fff' : 'var(--text)';
+    todoPill.style.borderColor = todoActive ? cfg.color : 'var(--border2)';
+  }
+  document.querySelectorAll('[id^="bp-"]').forEach(btn => {
+    if (btn.id === 'bp-Todo') return;
+    const bName = btn.id.replace('bp-', '');
+    const isActive = curBloques.has(bName);
+    btn.style.background = isActive ? cfg.color : 'transparent';
+    btn.style.color = isActive ? '#fff' : 'var(--text)';
+    btn.style.borderColor = isActive ? cfg.color : 'var(--border2)';
+  });
   renderTbl();
 }
 
@@ -324,6 +359,7 @@ function renderTbl() {
     if (dep && g(r, 'DEPTO') !== dep) return false;
     if (enl && g(r, 'Estado de enlace') !== enl) return false;
     if (cat) { const normCat = (g(r, 'Categoria Instalacion WIFI').includes('Integral') || g(r, 'Categoria Instalacion WIFI').includes('Falta instalar 1')) ? 'Completa' : g(r, 'Categoria Instalacion WIFI'); if (normCat !== cat) return false; }
+    if (curBloques.size > 0) { if (!curBloques.has(g(r, 'Bloque'))) return false; }
     if (srch) { const nm = g(r, 'NOMBRE CE').toLowerCase(); const dp = g(r, 'DEPTO').toLowerCase(); const cod = g(r, 'CÓD CE').toLowerCase(); if (!nm.includes(srch) && !dp.includes(srch) && !cod.includes(srch)) return false; }
     return true;
   });
